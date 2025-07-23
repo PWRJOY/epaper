@@ -26,5 +26,6 @@
         "esp_task_wdt.h": "c",
         "stdint.h": "c"
     },
-    "C_Cpp.errorSquiggles": "enabled"
+    "C_Cpp.errorSquiggles": "enabled",
+    "editor.detectIndentation": false
 }
