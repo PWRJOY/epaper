@@ -11,3 +11,5 @@ sdkconfig.old
 __pycache__/
 *.pyc
 
+# 忽略 Doxygen 生成的文档
+doxygen/
