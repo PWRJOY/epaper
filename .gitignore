@@ -1,0 +1,13 @@
+# === ESP-IDF build outputs ===
+build/
+managed_components/
+sdkconfig.old
+
+# === VS Code / Dev Containers ===
+# .vscode/
+# .devcontainer/
+
+# === Python 缓存（你项目有 .py 文件）===
+__pycache__/
+*.pyc
+
