@@ -13,3 +13,6 @@ __pycache__/
 
 # 忽略 Doxygen 生成的文档
 doxygen/
+
+# 忽略配置文件
+main/config.h

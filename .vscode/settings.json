@@ -24,7 +24,10 @@
         "cstdint": "cpp",
         "epaper_gui.h": "c",
         "esp_task_wdt.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "cjson.h": "c",
+        "task.h": "c",
+        "config.h": "c"
     },
     "C_Cpp.errorSquiggles": "enabled",
     "editor.detectIndentation": false
