@@ -724,3 +724,24 @@ void EPD_ShowFourColorPicture(uint16_t x,uint16_t y,uint16_t sizex,uint16_t size
     j++;
   } 
 }
+
+// 将bitmap字模数据 绘制到画布缓冲区
+void DrawBitmapToBuffer(uint16_t x, uint16_t y, const uint8_t *bitmap, uint8_t width, uint8_t height, uint16_t color)
+{
+    uint16_t x0 = x;
+    uint16_t SizeNum = (width / 8 + ((width % 8) ? 1 : 0)) * height;    // 计算该字符需要的字节数
+
+    for(uint8_t i=0;i<SizeNum;i++){             // 遍历字节数组
+        for(uint8_t j=0;j<8;j++){               // 遍历每个字节的位
+            if(bitmap[i]&(0x80>>j)){
+                Paint_SetPixel(x, y, color);    //画点
+            }  
+            x++;
+            if((x-x0)==width){                  //换行
+                x=x0;
+                y++;
+            }
+        }
+    }
+}
+

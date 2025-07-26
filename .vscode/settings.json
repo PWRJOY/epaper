@@ -27,7 +27,10 @@
         "stdint.h": "c",
         "cjson.h": "c",
         "task.h": "c",
-        "config.h": "c"
+        "config.h": "c",
+        "bitset": "c",
+        "string_view": "c",
+        "regex": "c"
     },
     "C_Cpp.errorSquiggles": "enabled",
     "editor.detectIndentation": false

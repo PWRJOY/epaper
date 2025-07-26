@@ -106,4 +106,11 @@ void EPD_ShowChinese24x24(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_
 /** @brief  函数功能：显示汉字，32*32字号 */
 void EPD_ShowChinese32x32(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color);
 
+/** @brief  函数功能：将位图绘制到缓冲区 */
+void DrawBitmapToBuffer(uint16_t x, uint16_t y, const uint8_t *bitmap, uint8_t width, uint8_t height, uint16_t color);
+
+// 函数功能：获取UTF-8字符长度
+int get_utf8_char_length(uint8_t first_byte);
+
+
 #endif
