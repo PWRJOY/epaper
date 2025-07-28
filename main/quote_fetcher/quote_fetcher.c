@@ -20,20 +20,30 @@ void register_quote_display_callback(quote_display_callback_t callback) {
 }
 
 
-// 全局缓冲区保存响应内容
-static char quote_buffer[2048] = {0};  
-
 static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
+    static int total_len = 0;
+    char *buffer = (char *)evt->user_data;
+    int buffer_size = 10240; // 10 KB
+
     switch (evt->event_id) {
         case HTTP_EVENT_ON_DATA:
             if (!esp_http_client_is_chunked_response(evt->client)) {
-                // 拷贝响应数据到 quote_buffer（确保不溢出）
-                int copy_len = evt->data_len < sizeof(quote_buffer) - 1 ? evt->data_len : sizeof(quote_buffer) - 1;
-                memcpy(quote_buffer, evt->data, copy_len);
-                quote_buffer[copy_len] = '\0';
-                ESP_LOGI(TAG, "HTTP 响应内容: %s", quote_buffer);
+                // 判断是否还有空间追加
+                if (total_len + evt->data_len < buffer_size - 1) {
+                    memcpy(buffer + total_len, evt->data, evt->data_len);
+                    total_len += evt->data_len;
+                    buffer[total_len] = '\0';  // 保证字符串结尾
+                } else {
+                    ESP_LOGW(TAG, "响应内容超出缓冲区，已截断");
+                }
             }
             break;
+
+        case HTTP_EVENT_ON_FINISH:
+            ESP_LOGI(TAG, "HTTP 响应完整内容: %s", buffer);
+            total_len = 0; // 重置
+            break;
+
         default:
             break;
     }
@@ -43,12 +53,14 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
 
 static void fetch_quote_task(void *pvParameters) {
     while (1) {
-        memset(quote_buffer, 0, sizeof(quote_buffer));
+        // 定义局部变量保存响应内容
+        char quote_buffer[1024*10] = {0};
 
         esp_http_client_config_t config = {
             .url = API_FONT,
             .event_handler = http_event_handler,
-            .buffer_size = 2048,
+            .buffer_size = 1024*10,                 // 设置缓冲区大小,最大10KB
+            .user_data = quote_buffer,              // 将缓冲区传递给事件处理函数
         };
 
         esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -114,6 +126,11 @@ static void fetch_quote_task(void *pvParameters) {
         }
 
         esp_http_client_cleanup(client);
+
+        // 监控当前任务或指定任务的剩余栈空间
+        // UBaseType_t high_water_mark = uxTaskGetStackHighWaterMark(NULL);
+        // ESP_LOGI("QUOTE", "Minimum free stack space: %d bytes", high_water_mark * 4);
+
         vTaskDelay(pdMS_TO_TICKS(10 * 60 * 1000));  // 10分钟后再请求
     }
 }
@@ -121,5 +138,5 @@ static void fetch_quote_task(void *pvParameters) {
 
 
 void start_quote_fetch_task(void) {
-    xTaskCreate(fetch_quote_task, "quote_task", 8192, NULL, 5, NULL);
+    xTaskCreate(fetch_quote_task, "quote_task", 1024*15, NULL, 5, NULL);
 }

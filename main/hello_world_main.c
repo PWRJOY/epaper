@@ -92,6 +92,7 @@ void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int g
 void app_main(void)
 {
     print_chip_info();          // 打印芯片信息
+    start_memory_monitor_task();// 启动内存监控任务
     init_nvs();                 // 初始化 NVS
     wifi_init_sta();            // 初始化并连接WiFi
     wait_for_wifi_connection(); // 等待WiFi连接成功

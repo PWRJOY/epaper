@@ -8,6 +8,8 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "config.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 void print_chip_info(void) {
     ESP_LOGI("BUILD", "%s", BUILD_ID);          
@@ -49,4 +51,29 @@ void init_nvs(void) {
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+}
+
+
+
+
+void memory_monitor_task(void *pvParameters)
+{
+    (void) pvParameters; // 明确标记参数未使用
+
+    while (1) {
+        // 获取当前空闲堆内存和历史最小堆内存
+        size_t free_heap = esp_get_free_heap_size();
+        size_t min_free_heap = esp_get_minimum_free_heap_size();
+        // 监控当前任务或指定任务的剩余栈空间
+        //UBaseType_t high_water_mark = uxTaskGetStackHighWaterMark(NULL);
+
+        ESP_LOGI("MemoryMonitor", "Free heap memory: %d bytes, Minimum free heap memory: %d bytes", free_heap, min_free_heap);
+        //ESP_LOGI("MemoryMonitor", "Minimum free stack space: %d bytes", high_water_mark * 4); //2048-640= 1408
+
+        // 每10分钟获取一次
+        vTaskDelay(10*60*1000 / portTICK_PERIOD_MS);
+    }
+}
+void start_memory_monitor_task(void) {
+    xTaskCreate(memory_monitor_task, "MemoryMonitor", 2048, NULL, 5, NULL);
 }
