@@ -28,7 +28,7 @@
 #include "board_init.h"
 #include <string.h>
 
-// 画布像素数据
+// 画布像素数据，17280字节=16.875Kb
 uint8_t ImageBW[EPD_W*EPD_H/4];
 
 // 显示语录到墨水屏的函数
@@ -61,24 +61,31 @@ void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int g
         strncpy(utf8_char, &quote[i], len);
 
         const uint8_t *bitmap = NULL;
+        uint8_t char_width = 0, char_height = 0;
 
         // 查找对应的位图
         for (int j = 0; j < glyph_count; ++j) {
             if (strcmp(utf8_char, glyphs[j].character) == 0) {
                 bitmap = glyphs[j].data;
+                char_width = glyphs[j].width;
+                char_height = glyphs[j].height;                
                 break;
             }
         }
 
         if (bitmap) {
-            DrawBitmapToBuffer(x, y, bitmap, 16, 16, BLACK);  // ✅ 替换为你已有的函数
-        }
+            // 如果高度已经到达屏幕边缘，就不再绘制
+            if (y + char_height > EPD_W) {
+                ESP_LOGW("EPD","屏幕空间不足，停止绘制");
+                break;
+            }      
 
-        // 更新 x 和 y 坐标
-        x += 16;
-        if (x + 16 > EPD_H) {
-            x = 0;
-            y += 16;
+            DrawBitmapToBuffer(x, y, bitmap, char_width, char_height, BLACK);
+            x += char_width;
+            if (x + char_width > EPD_H) {
+                x = 0;
+                y += char_height;
+            }
         }
 
         i += len;
