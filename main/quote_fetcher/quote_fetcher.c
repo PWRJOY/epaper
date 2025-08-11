@@ -15,7 +15,7 @@ static quote_display_callback_t display_callback = NULL;
 
 #define MAX_URL_LEN 256
 
-void get_mac_font_url(char *url_out, size_t max_len, int font_size)
+void get_mac_font_url(char *url_out, size_t max_len)
 {
     uint8_t mac[6];
     esp_err_t err = esp_read_mac(mac, ESP_MAC_WIFI_STA);  // 读取STA模式下的MAC地址
@@ -34,8 +34,8 @@ void get_mac_font_url(char *url_out, size_t max_len, int font_size)
 
     // 拼接URL字符串
     snprintf(url_out, max_len,
-             "%s?mac=%s&size=%d",
-             BASE_URL, mac_str, font_size);
+             "%s?mac=%s",
+             BASE_URL, mac_str);
 }
 
 
@@ -85,7 +85,7 @@ static void fetch_quote_task(void *pvParameters) {
         char quote_buffer[1024*10] = {0};
         // 获取带有 MAC 地址的 URL
         char full_url[MAX_URL_LEN];
-        get_mac_font_url(full_url, MAX_URL_LEN, 24);
+        get_mac_font_url(full_url, MAX_URL_LEN);
         printf("请求 URL: %s\n", full_url);
 
         esp_http_client_config_t config = {
