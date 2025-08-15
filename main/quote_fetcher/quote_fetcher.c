@@ -111,14 +111,37 @@ static void fetch_quote_task(void *pvParameters) {
                     cJSON *quote = cJSON_GetObjectItem(root, "quote");
                     cJSON *fontsize = cJSON_GetObjectItem(root, "fontsize");
                     cJSON *bitmaps = cJSON_GetObjectItem(root, "bitmaps");
+                    cJSON *positions = cJSON_GetObjectItem(root, "positions");
 
-                    if (cJSON_IsString(quote) && cJSON_IsObject(bitmaps) && cJSON_IsNumber(fontsize)) {
+                    GlyphBitmap glyphs[MAX_BITMAPS];   
+                    int glyph_count = 0;
+                    GlyphPlacement placements[MAX_BITMAPS];
+                    int placement_count = 0;  
+
+                    if (positions) {
+                        cJSON *pos_item = NULL;
+                        cJSON_ArrayForEach(pos_item, positions) {
+                            if (placement_count >= MAX_BITMAPS) break;
+
+                            cJSON *gIndexItem = cJSON_GetObjectItem(pos_item, "index");
+                            cJSON *xItem      = cJSON_GetObjectItem(pos_item, "x");
+                            cJSON *yItem      = cJSON_GetObjectItem(pos_item, "y");
+
+                            if (!cJSON_IsNumber(gIndexItem) || !cJSON_IsNumber(xItem) || !cJSON_IsNumber(yItem)) {
+                                continue;
+                            }
+
+                            placements[placement_count].glyph_index = (uint16_t)gIndexItem->valueint;
+                            placements[placement_count].x = (int16_t)xItem->valueint;
+                            placements[placement_count].y = (int16_t)yItem->valueint;
+                            placement_count++;
+                        }
+                    }                    
+
+                    if (quote && fontsize && bitmaps && positions) {
                         int font_size = fontsize->valueint;                 // 获取字号
                         int bytes_per_char = (font_size * font_size) / 8;   // 计算每个字符的字节数                    
                         ESP_LOGI(TAG, "语录内容: %s, 字号: %d", quote->valuestring, font_size);
-
-                        GlyphBitmap glyphs[MAX_BITMAPS];   
-                        int glyph_count = 0;
 
                         cJSON *glyph_item = NULL;
                         cJSON_ArrayForEach(glyph_item, bitmaps) {   // 逐个处理json消息的bitmaps字段对象
@@ -152,7 +175,7 @@ static void fetch_quote_task(void *pvParameters) {
                         }
 
                         if (display_callback) {
-                            display_callback(quote->valuestring, glyphs, glyph_count);
+                            display_callback(quote->valuestring, glyphs, glyph_count, placements);
                         }
 
                         // 释放内存

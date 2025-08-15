@@ -26,11 +26,18 @@ typedef struct {
     uint8_t height;             // 高度（像素）
 } GlyphBitmap;
 
+// 定义一个结构体来存储每个字符在画布上的位置
+typedef struct {
+    uint16_t glyph_index;       // 指向字符内容的下标，因为字模是去重过的
+    int16_t x;
+    int16_t y;
+} GlyphPlacement;
+
 // 启动语录抓取任务
 void start_quote_fetch_task(void);  
 
 // 回调类型定义
-typedef void (*quote_display_callback_t)(const char *quote, const GlyphBitmap *bitmaps, int count);
+typedef void (*quote_display_callback_t)(const char *quote, const GlyphBitmap *bitmaps, int count, const GlyphPlacement *placements);
 
 // 注册显示回调
 void register_quote_display_callback(quote_display_callback_t callback);

@@ -30,7 +30,8 @@
         "config.h": "c",
         "bitset": "c",
         "string_view": "c",
-        "regex": "c"
+        "regex": "c",
+        "random": "c"
     },
     "C_Cpp.errorSquiggles": "enabled",
     "editor.detectIndentation": false

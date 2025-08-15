@@ -32,7 +32,7 @@
 uint8_t ImageBW[EPD_W*EPD_H/4];
 
 // 显示语录到墨水屏的函数
-void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int glyph_count) {
+void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int glyph_count, const GlyphPlacement *placements) {
     static char last_quote[256] = {0};
 
     if (strcmp(quote, last_quote) == 0) {
@@ -45,8 +45,7 @@ void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int g
 
     Paint_Clear(WHITE);
 
-    int x = 0, y = 0;
-
+    int char_index = 0;           // 当前处理的字符索引
     // 遍历语录中的每个字符，查找对应的位图并绘制
     for (int i = 0; quote[i] != '\0'; ) {
 
@@ -74,21 +73,12 @@ void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int g
         }
 
         if (bitmap) {
-            // 如果高度已经到达屏幕边缘，就不再绘制
-            if (y + char_height > EPD_W) {
-                ESP_LOGW("EPD","屏幕空间不足，停止绘制");
-                break;
-            }      
-
-            DrawBitmapToBuffer(x, y, bitmap, char_width, char_height, BLACK);
-            x += char_width;
-            if (x + char_width > EPD_H) {
-                x = 0;
-                y += char_height;
-            }
+            //ESP_LOGI("EPD", "x=%d,y=%d",placements[char_index].x, placements[char_index].y); 
+            DrawBitmapToBuffer(placements[char_index].x, placements[char_index].y, bitmap, char_width, char_height, BLACK);
         }
 
         i += len;
+        char_index++;  // 增加字符索引
     }
 
     EPD_Display(ImageBW);
