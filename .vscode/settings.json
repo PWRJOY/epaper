@@ -31,7 +31,8 @@
         "bitset": "c",
         "string_view": "c",
         "regex": "c",
-        "random": "c"
+        "random": "c",
+        "quote_fetcher.h": "c"
     },
     "C_Cpp.errorSquiggles": "enabled",
     "editor.detectIndentation": false

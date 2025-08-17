@@ -95,16 +95,16 @@ void EPD_ShowFourColorPicture(uint16_t x,uint16_t y,uint16_t sizex,uint16_t size
 void EPD_ShowChinese(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color);
 
 /** @brief  函数功能：显示汉字，12*12字号 */
-void EPD_ShowChinese12x12(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color);
+void EPD_ShowChinese12x12(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color,uint8_t utf8_charnum);
 
 /** @brief  函数功能：显示汉字，16*16字号 */
-void EPD_ShowChinese16x16(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color);
+void EPD_ShowChinese16x16(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color,uint8_t utf8_charnum);
 
 /** @brief  函数功能：显示汉字，24*24字号 */
-void EPD_ShowChinese24x24(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color);
+void EPD_ShowChinese24x24(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color,uint8_t utf8_charnum);
 
 /** @brief  函数功能：显示汉字，32*32字号 */
-void EPD_ShowChinese32x32(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color);
+void EPD_ShowChinese32x32(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color,uint8_t utf8_charnum);
 
 /** @brief  函数功能：将位图绘制到缓冲区 */
 void DrawBitmapToBuffer(uint16_t x, uint16_t y, const uint8_t *bitmap, uint8_t width, uint8_t height, uint16_t color);

@@ -7,5 +7,5 @@ idf_component_register(
                     "quote_fetcher"  
                     "wifi"            
                     "board_init"  
-    REQUIRES driver nvs_flash esp_wifi esp_http_client json)
+    REQUIRES driver nvs_flash esp_wifi esp_http_client json esp_http_server)
 

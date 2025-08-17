@@ -28,6 +28,8 @@
 #include "board_init.h"
 #include <string.h>
 
+static const char *TAG = "main";
+
 // 画布像素数据，17280字节=16.875Kb
 uint8_t ImageBW[EPD_W*EPD_H/4];
 
@@ -85,20 +87,42 @@ void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int g
     EPD_Update();
 }
 
+// 显示配网步骤到电子纸屏幕
+void EPD_ShowNetworkConfigSteps(void)
+{
+    EPD_ShowChinese(144,10,(uint8_t*)"配网步骤",24,BLACK);
+    EPD_ShowString(10,40,(uint8_t*)"1.",24,BLACK,WHITE);
+    EPD_ShowChinese(34,40,(uint8_t*)"连接热点",24,BLACK);
+    EPD_ShowString(130,40,(uint8_t*)":QUOTE",24,BLACK,WHITE);
+    EPD_ShowString(10,70,(uint8_t*)"2.",24,BLACK,WHITE);
+    EPD_ShowChinese(34,70,(uint8_t*)"浏览器访问",24,BLACK);
+    EPD_ShowString(154,70,(uint8_t*)":192.168.4.1",24,BLACK,WHITE);
+    EPD_ShowString(10,100,(uint8_t*)"3.",24,BLACK,WHITE);
+    EPD_ShowChinese(34,100,(uint8_t*)"配置",24,BLACK);
+    EPD_ShowString(82,100,(uint8_t*)"WiFi",24,BLACK,WHITE);
+    EPD_ShowChinese(130,100,(uint8_t*)"名称和密码",24,BLACK);
+    EPD_Update();                                 // 刷新屏幕显示内容
+    EPD_Display(ImageBW);                         // 将画布内容发送到SRAM
+    EPD_Update();                                 // 刷新SRAM内容显示到墨水屏
+}
 
 void app_main(void)
 {
     print_chip_info();          // 打印芯片信息
     start_memory_monitor_task();// 启动内存监控任务
     init_nvs();                 // 初始化 NVS
-    wifi_init_sta();            // 初始化并连接WiFi
-    wait_for_wifi_connection(); // 等待WiFi连接成功
+    wifi_init_result_t result = wifi_init(); // 初始化WiFi
 
     EPD_Init();                                   // 墨水屏初始化
     Paint_NewImage(ImageBW,EPD_W,EPD_H,0,WHITE);  // 创建画布，画布数据存放于数组ImageBW
+    Paint_Clear(WHITE);                           // 画布清屏
 
-    register_quote_display_callback(display_quote_on_epaper);   // 注册显示函数
-    start_quote_fetch_task();                                   // 启动语录获取任务
+    if (result == WIFI_INIT_CONNECTED) {            //wiFi已连接才去服务器获取内容
+        register_quote_display_callback(display_quote_on_epaper);   // 注册显示函数
+        start_quote_fetch_task();                                   // 启动语录获取任务
+    }else{
+        EPD_ShowNetworkConfigSteps();               // 显示配网步骤
+    }
 
     while(1){
         vTaskDelay(1000 / portTICK_PERIOD_MS);      // 非阻塞延时，用于任务切换

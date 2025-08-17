@@ -290,13 +290,13 @@ void EPD_ShowChinese(uint16_t x, uint16_t y, uint8_t *s, uint8_t sizey, uint16_t
 
       // 根据字号大小调用单个汉字显示函数
       if (sizey == 12) {
-          EPD_ShowChinese12x12(x, y, s, sizey, color);
+          EPD_ShowChinese12x12(x, y, s, sizey, color, length);
       } else if (sizey == 16) {
-          EPD_ShowChinese16x16(x, y, s, sizey, color);
+          EPD_ShowChinese16x16(x, y, s, sizey, color, length);
       } else if (sizey == 24) {
-          EPD_ShowChinese24x24(x, y, s, sizey, color);
+          EPD_ShowChinese24x24(x, y, s, sizey, color, length);
       } else if (sizey == 32) {
-          EPD_ShowChinese32x32(x, y, s, sizey, color);
+          EPD_ShowChinese32x32(x, y, s, sizey, color, length);
       } else {
           return;
       }
@@ -333,7 +333,7 @@ void EPD_ShowChinese(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t col
  * @param sizey 字号
  * @param color 颜色
  */
-void EPD_ShowChinese12x12(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color)
+void EPD_ShowChinese12x12(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color,uint8_t utf8_charnum)
 {
   uint8_t i,j;
   uint16_t k;
@@ -344,7 +344,17 @@ void EPD_ShowChinese12x12(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_
   HZnum=sizeof(tfont12)/sizeof(typFNT_GB12);  
   for(k=0;k<HZnum;k++) 
   {
-    if((tfont12[k].Index[0]==*(s))&&(tfont12[k].Index[1]==*(s+1)))
+    // 根据utf8_charnum判断对应字节数是否匹配
+    uint8_t match = 1;
+    for (uint8_t m = 0; m < utf8_charnum; m++) 
+    {
+      if (tfont12[k].Index[m] != *(s + m)) 
+      {
+        match = 0;
+        break;
+      }
+    }    
+    if(match)
     {   
       for(i=0;i<TypefaceNum;i++)
       {
@@ -374,7 +384,7 @@ void EPD_ShowChinese12x12(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_
  * @param sizey 字号
  * @param color 颜色
  */
-void EPD_ShowChinese16x16(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color)
+void EPD_ShowChinese16x16(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color,uint8_t utf8_charnum)
 {
   uint8_t i,j;
   uint16_t k;
@@ -386,7 +396,17 @@ void EPD_ShowChinese16x16(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_
 
   for(k=0;k<HZnum;k++)    //遍历字库
   {
-    if ((tfont16[k].Index[0]==*(s))&&(tfont16[k].Index[1]==*(s+1))) //如果字库索引匹配
+    // 根据utf8_charnum判断对应字节数是否匹配
+    uint8_t match = 1;
+    for (uint8_t m = 0; m < utf8_charnum; m++) 
+    {
+      if (tfont16[k].Index[m] != *(s + m)) 
+      {
+        match = 0;
+        break;
+      }
+    }    
+    if(match)
     {   
       for(i=0;i<TypefaceNum;i++)  //显示字符
       {
@@ -415,7 +435,7 @@ void EPD_ShowChinese16x16(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_
  * @param sizey 字号
  * @param color 颜色
  */
-void EPD_ShowChinese24x24(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color)
+void EPD_ShowChinese24x24(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color,uint8_t utf8_charnum)
 {
   uint8_t i,j;
   uint16_t k;
@@ -426,7 +446,17 @@ void EPD_ShowChinese24x24(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_
   HZnum=sizeof(tfont24)/sizeof(typFNT_GB24);  
   for(k=0;k<HZnum;k++) 
   {
-    if ((tfont24[k].Index[0]==*(s))&&(tfont24[k].Index[1]==*(s+1)))
+    // 根据utf8_charnum判断对应字节数是否匹配
+    uint8_t match = 1;
+    for (uint8_t m = 0; m < utf8_charnum; m++) 
+    {
+      if (tfont24[k].Index[m] != *(s + m)) 
+      {
+        match = 0;
+        break;
+      }
+    }    
+    if(match)
     {   
       for(i=0;i<TypefaceNum;i++)
       {
@@ -456,7 +486,7 @@ void EPD_ShowChinese24x24(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_
  * @param sizey 字号
  * @param color 颜色
  */
-void EPD_ShowChinese32x32(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color)
+void EPD_ShowChinese32x32(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_t color,uint8_t utf8_charnum)
 {
   uint8_t i,j;
   uint16_t k;
@@ -467,7 +497,17 @@ void EPD_ShowChinese32x32(uint16_t x,uint16_t y,uint8_t *s,uint8_t sizey,uint16_
   HZnum=sizeof(tfont32)/sizeof(typFNT_GB32);  
   for(k=0;k<HZnum;k++) 
   {
-    if ((tfont32[k].Index[0]==*(s))&&(tfont32[k].Index[1]==*(s+1)))
+    // 根据utf8_charnum判断对应字节数是否匹配
+    uint8_t match = 1;
+    for (uint8_t m = 0; m < utf8_charnum; m++) 
+    {
+      if (tfont32[k].Index[m] != *(s + m)) 
+      {
+        match = 0;
+        break;
+      }
+    }    
+    if(match)
     {   
       for(i=0;i<TypefaceNum;i++)
       {
