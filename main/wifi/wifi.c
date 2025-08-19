@@ -9,11 +9,17 @@
 #include "esp_http_server.h"
 #include "wifi_html.h"
 #include "driver/gpio.h"
+#include "cJSON.h"
 
 #define WIFI_CONNECTED_BIT BIT0
 static EventGroupHandle_t wifi_event_group;
 static const char *TAG = "wifi";
 
+// WiFi扫描结果存储
+static wifi_ap_record_t *ap_records;
+static uint16_t ap_count = 0;
+
+// 保存WiFi信息
 static char saved_ssid[32] = {0};
 static char saved_pass[64] = {0};
 
@@ -179,37 +185,121 @@ static esp_err_t favicon_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// 扫描附近WiFi
+static void scan_wifi_networks(void) {
+    // 清除之前的扫描结果
+    if (ap_records) {
+        free(ap_records);
+        ap_records = NULL;
+    }
+    ap_count = 0;
+
+    // 配置扫描参数
+    wifi_scan_config_t scan_config = {
+        .ssid = NULL,                       // 不指定特定的 SSID，将扫描所有可检测到的无线网络
+        .bssid = NULL,                      // 不指定特定的 BSSID，将扫描所有接入点
+        .channel = 0,                       // 扫描所有信道
+        .show_hidden = false,               // 不包括隐藏网络
+        .scan_type = WIFI_SCAN_TYPE_ACTIVE, // 主动扫描
+        .scan_time.active.min = 100,        // 每个信道最小扫描时间(ms)
+        .scan_time.active.max = 300         // 每个信道最大扫描时间(ms)        
+    };
+    
+    // 开始扫描
+    ESP_ERROR_CHECK(esp_wifi_scan_start(&scan_config, true));
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_count));
+
+    
+    // 分配内存存储扫描结果
+    ap_records = (wifi_ap_record_t *)malloc(sizeof(wifi_ap_record_t) * ap_count);
+    if (!ap_records) {
+        ESP_LOGE("WIFI", "内存分配失败");
+        ap_count = 0;
+        return;
+    }
+    
+    // 获取扫描结果
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&ap_count, ap_records));
+    ESP_LOGI("WIFI", "发现 %d 个WiFi网络", ap_count);
+    for (int i = 0; i < ap_count; i++) {
+        ESP_LOGI("WIFI", "SSID:%s, 信号:%d, 信道:%d", ap_records[i].ssid, ap_records[i].rssi, ap_records[i].primary);
+    }
+}
+
+// 处理WiFi扫描请求
+static esp_err_t wifi_scan_handler(httpd_req_t *req) {
+    // 扫描WiFi网络
+    scan_wifi_networks();
+    
+    // 创建JSON响应
+    cJSON *root = cJSON_CreateObject();
+    cJSON *networks = cJSON_AddArrayToObject(root, "networks");
+    
+    // 添加扫描结果到JSON
+    for (int i = 0; i < ap_count; i++) {
+        cJSON *network = cJSON_CreateObject();
+        cJSON_AddStringToObject(network, "ssid", (char *)ap_records[i].ssid);
+        cJSON_AddNumberToObject(network, "rssi", ap_records[i].rssi);
+        cJSON_AddItemToArray(networks, network);
+    }
+    
+    // 转换JSON为字符串
+    char *json_str = cJSON_Print(root);
+    if (!json_str) {
+        cJSON_Delete(root);
+        return httpd_resp_send_500(req);
+    }
+    
+    // 发送响应
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, json_str, HTTPD_RESP_USE_STRLEN);
+    
+    // 清理资源
+    free(json_str);
+    cJSON_Delete(root);
+    return ESP_OK;
+}
 
 static void start_http_server(void) {
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG(); 
-    httpd_start(&server, &config);
 
-    httpd_uri_t favicon_uri = {
-        .uri = "/favicon.ico",
-        .method = HTTP_GET,
-        .handler = favicon_handler,
-        .user_ctx = NULL
-    };
-    httpd_register_uri_handler(server, &favicon_uri);
+    if (httpd_start(&server, &config) == ESP_OK) {
+        httpd_uri_t favicon_uri = {
+            .uri = "/favicon.ico",
+            .method = HTTP_GET,
+            .handler = favicon_handler,
+            .user_ctx = NULL
+        };
+        httpd_register_uri_handler(server, &favicon_uri);
 
-    // GET 页面
-    httpd_uri_t wifi_get_uri = {
-        .uri = "/",
-        .method = HTTP_GET,
-        .handler = wifi_get_handler,
-        .user_ctx = NULL
-    };
-    httpd_register_uri_handler(server, &wifi_get_uri);
+        // GET 页面
+        httpd_uri_t wifi_get_uri = {
+            .uri = "/",
+            .method = HTTP_GET,
+            .handler = wifi_get_handler,
+            .user_ctx = NULL
+        };
+        httpd_register_uri_handler(server, &wifi_get_uri);
 
-    // POST 数据
-    httpd_uri_t wifi_post_uri = {
-        .uri = "/wifi",
-        .method = HTTP_POST,
-        .handler = wifi_post_handler,
-        .user_ctx = NULL
-    };
-    httpd_register_uri_handler(server, &wifi_post_uri);
+        // WiFi扫描请求处理
+        httpd_uri_t wifi_scan_uri = {
+            .uri = "/scan",
+            .method = HTTP_GET,
+            .handler = wifi_scan_handler,
+            .user_ctx = NULL
+        };
+        httpd_register_uri_handler(server, &wifi_scan_uri);
+
+        // POST 数据
+        httpd_uri_t wifi_post_uri = {
+            .uri = "/wifi",
+            .method = HTTP_POST,
+            .handler = wifi_post_handler,
+            .user_ctx = NULL
+        };
+        httpd_register_uri_handler(server, &wifi_post_uri);
+    }
 }
 
 
@@ -224,14 +314,14 @@ static void start_ap_mode(void) {
 
     wifi_config_t ap_config = {
         .ap = {
-            .ssid = "ESP32_Config",
+            .ssid = "QUOTE",
             .ssid_len = strlen("QUOTE"),
             .password = "88888888",
             .max_connection = 4,
             .authmode = WIFI_AUTH_WPA_WPA2_PSK
         },
     };
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));    // AP+STA 混合模式，实现 "扫描附近 WiFi 并配网" 
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
