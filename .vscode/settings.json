@@ -12,7 +12,7 @@
     "idf.openOcdConfigs": [
         "board/esp32-wrover-kit-3.3v.cfg"
     ],
-    "idf.portWin": "COM3",
+    "idf.portWin": "COM4",
     "idf.pythonBinPathWin": "c:\\Users\\LY\\esp\\vscode_esptools\\python_env\\idf5.3_py3.11_env\\Scripts\\python.exe",
     "idf.toolsPathWin": "c:\\Users\\LY\\esp\\vscode_esptools",
     "idf.pythonInstallPath": "c:\\Users\\LY\\esp\\vscode_esptools\\tools\\idf-python\\3.11.2\\python.exe",
