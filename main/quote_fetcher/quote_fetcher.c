@@ -6,6 +6,8 @@
 #include "freertos/task.h"
 #include "config.h"
 #include "esp_mac.h"
+#include <esp_sleep.h>
+#include "nvs_flash.h"
 
 #define TAG "QUOTE"
 
@@ -14,6 +16,12 @@ static quote_display_callback_t display_callback = NULL;
 
 
 #define MAX_URL_LEN 256
+
+#define REFRESH_INTERVAL_US 600000000ULL    // 10分钟，单位微秒
+
+#define NVS_NAMESPACE "epaper_quote"       // NVS命名空间（用于存储last_quote）
+#define NVS_KEY_LAST_QUOTE "last_quote"    // NVS中存储last_quote的键
+#define LAST_QUOTE_MAX_LEN 256             // 语录最大长度
 
 void get_mac_font_url(char *url_out, size_t max_len)
 {
@@ -205,7 +213,14 @@ static void fetch_quote_task(void *pvParameters) {
         // UBaseType_t high_water_mark = uxTaskGetStackHighWaterMark(NULL);
         // ESP_LOGI("QUOTE", "Minimum free stack space: %d bytes", high_water_mark * 4);
 
-        vTaskDelay(pdMS_TO_TICKS(10 * 60 * 1000));  // 10分钟后再请求
+        //vTaskDelay(pdMS_TO_TICKS(10 * 60 * 1000));  // 10分钟后再请求
+
+        // 进入深度睡眠
+        vTaskDelay(pdMS_TO_TICKS(10 * 1000));   // 确保墨水屏刷新完毕
+        ESP_LOGI(TAG, "开始深度睡眠");
+        esp_sleep_enable_timer_wakeup(REFRESH_INTERVAL_US);
+        esp_deep_sleep_start();
+
     }
 }
 
@@ -214,3 +229,65 @@ static void fetch_quote_task(void *pvParameters) {
 void start_quote_fetch_task(void) {
     xTaskCreate(fetch_quote_task, "quote_task", 1024*15, NULL, 5, NULL);
 }
+
+
+// 从NVS读取上一次的语录
+esp_err_t nvs_read_last_quote(char *last_quote, size_t max_len) {
+    esp_err_t err;
+    nvs_handle_t nvs_handle;
+
+    // 打开NVS命名空间
+    err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE("NVS", "Open namespace failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    // 读取last_quote（默认初始化为空字符串）
+    size_t len = max_len;
+    err = nvs_get_str(nvs_handle, NVS_KEY_LAST_QUOTE, last_quote, &len);
+    if (err == ESP_ERR_NVS_NOT_FOUND) {
+        ESP_LOGI("NVS", "No last quote in NVS, init as empty");
+        last_quote[0] = '\0';  // 首次运行时，设为空字符串
+        err = ESP_OK;
+    } else if (err != ESP_OK) {
+        ESP_LOGE("NVS", "Read last quote failed: %s", esp_err_to_name(err));
+    }
+
+    nvs_close(nvs_handle);
+    return err;
+}
+
+
+// 向NVS写入最新的语录
+esp_err_t nvs_write_last_quote(const char *new_quote) {
+    esp_err_t err;
+    nvs_handle_t nvs_handle;
+
+    // 打开NVS命名空间
+    err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE("NVS", "Open namespace failed: %s", esp_err_to_name(err));
+        return err;
+    }
+
+    // 写入新语录（会覆盖旧值）
+    err = nvs_set_str(nvs_handle, NVS_KEY_LAST_QUOTE, new_quote);
+    if (err != ESP_OK) {
+        ESP_LOGE("NVS", "Write last quote failed: %s", esp_err_to_name(err));
+    } else {
+        // 提交写入（NVS需要手动提交才会生效）
+        err = nvs_commit(nvs_handle);
+        if (err != ESP_OK) {
+            ESP_LOGE("NVS", "Commit last quote failed: %s", esp_err_to_name(err));
+        }
+    }
+
+    nvs_close(nvs_handle);
+    return err;
+}
+
+
+
+
+

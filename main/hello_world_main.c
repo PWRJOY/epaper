@@ -35,17 +35,28 @@ uint8_t ImageBW[EPD_W*EPD_H/4];
 
 // 显示语录到墨水屏的函数
 void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int glyph_count, const GlyphPlacement *placements) {
-    static char last_quote[256] = {0};
+    char last_quote[256] = {0};
 
-    if (strcmp(quote, last_quote) == 0) {
-        ESP_LOGI("EPD", "语录未变化，跳过刷新");
-        return;
+    // 1. 从NVS读取上一次的语录
+    if (nvs_read_last_quote(last_quote, sizeof(last_quote)) != ESP_OK) {
+        ESP_LOGE("EPD", "Read last quote from NVS failed, force refresh");
+        // NVS读取失败时，强制刷新（避免一直不显示）
+    } else {
+        // 2. 对比新语录和旧语录，相同则跳过刷新
+        if (strcmp(quote, last_quote) == 0) {
+            ESP_LOGI("EPD", "语录未变化，跳过刷新");
+            return;
+        }
     }
 
+    // 3. 语录不同：刷新屏幕 + 更新NVS中的last_quote
     strncpy(last_quote, quote, sizeof(last_quote) - 1);
     last_quote[sizeof(last_quote) - 1] = '\0';
+    nvs_write_last_quote(last_quote);
 
-    Paint_Clear(WHITE);
+    EPD_Init();                                   // 墨水屏初始化
+    Paint_NewImage(ImageBW,EPD_W,EPD_H,0,WHITE);  // 创建画布，画布数据存放于数组ImageBW
+    Paint_Clear(WHITE);                           // 画布清屏   
 
     int char_index = 0;           // 当前处理的字符索引
     // 遍历语录中的每个字符，查找对应的位图并绘制
@@ -90,6 +101,9 @@ void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int g
 // 显示配网步骤到电子纸屏幕
 void EPD_ShowNetworkConfigSteps(void)
 {
+    EPD_Init();                                   // 墨水屏初始化
+    Paint_NewImage(ImageBW,EPD_W,EPD_H,0,WHITE);  // 创建画布，画布数据存放于数组ImageBW
+    Paint_Clear(WHITE);                           // 画布清屏
     EPD_ShowChinese(144,10,(uint8_t*)"配网步骤",24,BLACK);
     EPD_ShowString(10,40,(uint8_t*)"1.",24,BLACK,WHITE);
     EPD_ShowChinese(34,40,(uint8_t*)"连接热点",24,BLACK);
@@ -113,9 +127,7 @@ void app_main(void)
     init_nvs();                 // 初始化 NVS
     wifi_init_result_t result = wifi_init(); // 初始化WiFi
 
-    EPD_Init();                                   // 墨水屏初始化
-    Paint_NewImage(ImageBW,EPD_W,EPD_H,0,WHITE);  // 创建画布，画布数据存放于数组ImageBW
-    Paint_Clear(WHITE);                           // 画布清屏
+
 
     if (result == WIFI_INIT_CONNECTED) {            //wiFi已连接才去服务器获取内容
         register_quote_display_callback(display_quote_on_epaper);   // 注册显示函数

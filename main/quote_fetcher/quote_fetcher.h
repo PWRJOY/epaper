@@ -5,6 +5,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include "esp_err.h"
 
 #define MAX_BITMAPS 64          // 一次语录不超过 64 个
 
@@ -41,6 +42,10 @@ typedef void (*quote_display_callback_t)(const char *quote, const GlyphBitmap *b
 
 // 注册显示回调
 void register_quote_display_callback(quote_display_callback_t callback);
+
+esp_err_t nvs_read_last_quote(char *last_quote, size_t max_len);
+esp_err_t nvs_write_last_quote(const char *new_quote);
+
 
 #ifdef __cplusplus
 }
