@@ -38,7 +38,7 @@ typedef struct {
 void start_quote_fetch_task(void);  
 
 // 回调类型定义
-typedef void (*quote_display_callback_t)(const char *quote, const GlyphBitmap *bitmaps, int count, const GlyphPlacement *placements);
+typedef void (*quote_display_callback_t)(const char *screen_model, const char *quote, const GlyphBitmap *bitmaps, int count, const GlyphPlacement *placements);
 
 // 注册显示回调
 void register_quote_display_callback(quote_display_callback_t callback);

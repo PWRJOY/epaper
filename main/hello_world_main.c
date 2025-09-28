@@ -27,6 +27,8 @@
 #include "wifi.h"
 #include "board_init.h"
 #include <string.h>
+#include "../components/ssd1680_epaper_driver/ssd1680_epaper.h"
+#include "../components/ssd1680_epaper_driver/qy_ssd1680_epaper.h"
 
 static const char *TAG = "main";
 
@@ -34,7 +36,12 @@ static const char *TAG = "main";
 uint8_t ImageBW[EPD_W*EPD_H/4];
 
 // 显示语录到墨水屏的函数
-void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int glyph_count, const GlyphPlacement *placements) {
+// 参数：   screen_model,屏幕型号，不同的屏幕驱动不同
+//          quote,语录文本
+//          glyphs,字模数组
+//          glyph_count,字模数组大小
+//          placements,字符位置数组，控制字符在屏幕中显示的位置
+void display_quote_on_epaper(const char *screen_model, const char *quote, const GlyphBitmap *glyphs, int glyph_count, const GlyphPlacement *placements) {
     char last_quote[256] = {0};
 
     // 1. 从NVS读取上一次的语录
@@ -54,9 +61,20 @@ void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int g
     last_quote[sizeof(last_quote) - 1] = '\0';
     nvs_write_last_quote(last_quote);
 
-    EPD_Init();                                   // 墨水屏初始化
-    Paint_NewImage(ImageBW,EPD_W,EPD_H,0,WHITE);  // 创建画布，画布数据存放于数组ImageBW
-    Paint_Clear(WHITE);                           // 画布清屏   
+    if(strcmp(screen_model, "zjy_3.52_4colors") == 0){
+        ESP_LOGI("EPD", "中景园 3.52寸 黑白红黄4色屏幕");
+        EPD_Init();                                   // 墨水屏初始化
+        Paint_NewImage(ImageBW,EPD_W,EPD_H,0,WHITE);  // 创建画布，画布数据存放于数组ImageBW
+        Paint_Clear(WHITE);                           // 画布清屏  
+    }else if(strcmp(screen_model, "qy_2.9_2colors") == 0){
+        ESP_LOGI("EPD", "奇耘 4.2寸 黑白屏幕");
+        QY_SSD1680_Init();                              // 墨水屏初始化
+        QY_SSD1680_Clear();                             // 清屏
+        QY_SSD1680_HW_RESET();
+    }else{
+        ESP_LOGE("EPD", "不支持的屏幕型号: %s", screen_model);
+        return;
+    }
 
     int char_index = 0;           // 当前处理的字符索引
     // 遍历语录中的每个字符，查找对应的位图并绘制
@@ -87,37 +105,46 @@ void display_quote_on_epaper(const char *quote, const GlyphBitmap *glyphs, int g
 
         if (bitmap) {
             //ESP_LOGI("EPD", "x=%d,y=%d",placements[char_index].x, placements[char_index].y); 
-            DrawBitmapToBuffer(placements[char_index].x, placements[char_index].y, bitmap, char_width, char_height, BLACK);
+            if(strcmp(screen_model, "zjy_3.52_4colors") == 0){
+                DrawBitmapToBuffer(placements[char_index].x, placements[char_index].y, bitmap, char_width, char_height, BLACK);
+            }else if(strcmp(screen_model, "qy_2.9_2colors") == 0){
+                QY_SSD1680_Display_Part(placements[char_index].x, placements[char_index].y,bitmap,char_width, char_height,POS); 
+            }
         }
 
         i += len;
         char_index++;  // 增加字符索引
     }
 
-    EPD_Display(ImageBW);
-    EPD_Update();
+    if(strcmp(screen_model, "zjy_3.52_4colors") == 0){
+        EPD_Display(ImageBW);                         // 将画布内容发送到SRAM
+        EPD_Update();                                 // 刷新SRAM内容显示到墨水屏
+    }else if(strcmp(screen_model, "qy_2.9_2colors") == 0){
+        QY_SSD1680_Update_and_DeepSleep_Part();      // 布局刷新，时序，显示模式2
+    }
 }
 
 // 显示配网步骤到电子纸屏幕
 void EPD_ShowNetworkConfigSteps(void)
 {
-    EPD_Init();                                   // 墨水屏初始化
-    Paint_NewImage(ImageBW,EPD_W,EPD_H,0,WHITE);  // 创建画布，画布数据存放于数组ImageBW
-    Paint_Clear(WHITE);                           // 画布清屏
-    EPD_ShowChinese(144,10,(uint8_t*)"配网步骤",24,BLACK);
-    EPD_ShowString(10,40,(uint8_t*)"1.",24,BLACK,WHITE);
-    EPD_ShowChinese(34,40,(uint8_t*)"连接热点",24,BLACK);
-    EPD_ShowString(130,40,(uint8_t*)":QUOTE",24,BLACK,WHITE);
-    EPD_ShowString(10,70,(uint8_t*)"2.",24,BLACK,WHITE);
-    EPD_ShowChinese(34,70,(uint8_t*)"浏览器访问",24,BLACK);
-    EPD_ShowString(154,70,(uint8_t*)":192.168.4.1",24,BLACK,WHITE);
-    EPD_ShowString(10,100,(uint8_t*)"3.",24,BLACK,WHITE);
-    EPD_ShowChinese(34,100,(uint8_t*)"配置",24,BLACK);
-    EPD_ShowString(82,100,(uint8_t*)"WiFi",24,BLACK,WHITE);
-    EPD_ShowChinese(130,100,(uint8_t*)"名称和密码",24,BLACK);
-    EPD_Update();                                 // 刷新屏幕显示内容
-    EPD_Display(ImageBW);                         // 将画布内容发送到SRAM
-    EPD_Update();                                 // 刷新SRAM内容显示到墨水屏
+    ESP_LOGI("EPD", "未连接，需配网");
+    // EPD_Init();                                   // 墨水屏初始化
+    // Paint_NewImage(ImageBW,EPD_W,EPD_H,0,WHITE);  // 创建画布，画布数据存放于数组ImageBW
+    // Paint_Clear(WHITE);                           // 画布清屏
+    // EPD_ShowChinese(144,10,(uint8_t*)"配网步骤",24,BLACK);
+    // EPD_ShowString(10,40,(uint8_t*)"1.",24,BLACK,WHITE);
+    // EPD_ShowChinese(34,40,(uint8_t*)"连接热点",24,BLACK);
+    // EPD_ShowString(130,40,(uint8_t*)":QUOTE",24,BLACK,WHITE);
+    // EPD_ShowString(10,70,(uint8_t*)"2.",24,BLACK,WHITE);
+    // EPD_ShowChinese(34,70,(uint8_t*)"浏览器访问",24,BLACK);
+    // EPD_ShowString(154,70,(uint8_t*)":192.168.4.1",24,BLACK,WHITE);
+    // EPD_ShowString(10,100,(uint8_t*)"3.",24,BLACK,WHITE);
+    // EPD_ShowChinese(34,100,(uint8_t*)"配置",24,BLACK);
+    // EPD_ShowString(82,100,(uint8_t*)"WiFi",24,BLACK,WHITE);
+    // EPD_ShowChinese(130,100,(uint8_t*)"名称和密码",24,BLACK);
+    // EPD_Update();                                 // 刷新屏幕显示内容
+    // EPD_Display(ImageBW);                         // 将画布内容发送到SRAM
+    // EPD_Update();                                 // 刷新SRAM内容显示到墨水屏
 }
 
 void app_main(void)
@@ -126,8 +153,6 @@ void app_main(void)
     start_memory_monitor_task();// 启动内存监控任务
     init_nvs();                 // 初始化 NVS
     wifi_init_result_t result = wifi_init(); // 初始化WiFi
-
-
 
     if (result == WIFI_INIT_CONNECTED) {            //wiFi已连接才去服务器获取内容
         register_quote_display_callback(display_quote_on_epaper);   // 注册显示函数

@@ -58,40 +58,40 @@
 
 //================函数声明=======================
 
-/** @brief 函数功能：初始化 GPIO 引脚，为后续墨水屏操作做准备 */
+//初始化 GPIO 引脚，为后续墨水屏操作做准备
 void EPD_GPIOInit(void);        
 
-/** @brief 函数功能：向总线上写入一个字节的数据 */
+//向总线上写入一个字节的数据
 void EPD_WR_Bus(uint8_t dat);   
 
-/** @brief 函数功能：向墨水屏写入指令-Command */
+//向墨水屏写入指令-Command
 void EPD_WR_REG(uint8_t reg);   
 
-/** @brief 函数功能：向墨水屏写入 8 位数据-Parameter */
+//向墨水屏写入 8 位数据-Parameter
 void EPD_WR_DATA8(uint8_t dat);
 
-/** @brief 函数功能：读取并等待墨水屏的忙碌状态 */
+//读取并等待墨水屏的忙碌状态
 void EPD_READBUSY(void);
 
-/** @brief 函数功能：对墨水屏进行硬件复位操作 */
+//对墨水屏进行硬件复位操作
 void EPD_HW_RESET(void);
 
-/** @brief 函数功能：更新墨水屏显示内容 */
+//更新墨水屏显示内容
 void EPD_Update(void);
 
-/** @brief 函数功能：使墨水屏进入深度睡眠模式以节省功耗 */
+//使墨水屏进入深度睡眠模式以节省功耗
 void EPD_DeepSleep(void);
 
-/** @brief 函数功能：初始化墨水屏，设置必要的参数和状态 */
+//初始化墨水屏，设置必要的参数和状态
 void EPD_Init(void);
 
-/** @brief 函数功能：进行颜色转换，将输入颜色转换为特定格式 */
+//进行颜色转换，将输入颜色转换为特定格式
 uint8_t Color_Conversion(uint8_t color);
 
-/** @brief 函数功能：用指定数据填充墨水屏整个显示区域 */
+//用指定数据填充墨水屏整个显示区域
 void EPD_Display_Fill(uint8_t dat);
 
-/** @brief 函数功能：在墨水屏上显示画布内容 */
+//在墨水屏上显示画布内容
 void EPD_Display(const uint8_t *image);
 
 #endif

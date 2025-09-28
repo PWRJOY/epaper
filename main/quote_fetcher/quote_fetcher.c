@@ -117,6 +117,7 @@ static void fetch_quote_task(void *pvParameters) {
                 cJSON *root = cJSON_Parse(quote_buffer);
                 if (root) {
                     cJSON *quote = cJSON_GetObjectItem(root, "quote");
+                    cJSON *screen_model = cJSON_GetObjectItem(root, "screen_model");
                     cJSON *fontsize = cJSON_GetObjectItem(root, "fontsize");
                     cJSON *bitmaps = cJSON_GetObjectItem(root, "bitmaps");
                     cJSON *positions = cJSON_GetObjectItem(root, "positions");
@@ -146,10 +147,10 @@ static void fetch_quote_task(void *pvParameters) {
                         }
                     }                    
 
-                    if (quote && fontsize && bitmaps && positions) {
+                    if (quote && screen_model && fontsize && bitmaps && positions) {
                         int font_size = fontsize->valueint;                 // 获取字号
                         int bytes_per_char = (font_size * font_size) / 8;   // 计算每个字符的字节数                    
-                        ESP_LOGI(TAG, "语录内容: %s, 字号: %d", quote->valuestring, font_size);
+                        ESP_LOGI(TAG, "语录内容: %s, 屏幕型号：%s, 字号: %d", quote->valuestring, screen_model->valuestring, font_size);
 
                         cJSON *glyph_item = NULL;
                         cJSON_ArrayForEach(glyph_item, bitmaps) {   // 逐个处理json消息的bitmaps字段对象
@@ -183,7 +184,7 @@ static void fetch_quote_task(void *pvParameters) {
                         }
 
                         if (display_callback) {
-                            display_callback(quote->valuestring, glyphs, glyph_count, placements);
+                            display_callback(screen_model->valuestring, quote->valuestring, glyphs, glyph_count, placements);
                         }
 
                         // 释放内存
