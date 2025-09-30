@@ -34,6 +34,15 @@ typedef struct {
     int16_t y;
 } GlyphPlacement;
 
+// 请求原因类型定义（涵盖各种请求触发场景）
+typedef enum {
+    REQUEST_REASON_UNKNOWN = 0,     // 未知原因
+    REQUEST_REASON_BUTTON_TRIGGER,  // 按键触发请求
+    REQUEST_REASON_TIMER,           // 定时请求
+    REQUEST_REASON_MOTION_DETECT,   // 运动检测触发（如LIS3DH检测到运动）
+    REQUEST_REASON_ERROR,           // 错误状态上报
+} request_reason_t;
+
 // 启动语录抓取任务
 void start_quote_fetch_task(void);  
 

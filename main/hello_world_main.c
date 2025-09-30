@@ -29,6 +29,7 @@
 #include <string.h>
 #include "../components/ssd1680_epaper_driver/ssd1680_epaper.h"
 #include "../components/ssd1680_epaper_driver/qy_ssd1680_epaper.h"
+#include "../components/lis3dh/lis3dh.h"
 
 static const char *TAG = "main";
 

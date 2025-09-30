@@ -8,8 +8,11 @@
 #include "esp_mac.h"
 #include <esp_sleep.h>
 #include "nvs_flash.h"
+#include "driver/rtc_io.h"
 
 #define TAG "QUOTE"
+
+#define WAKE_PIN    34          // 34号引脚用于外部唤醒（连接按键）
 
 // 全局变量保存回调函数
 static quote_display_callback_t display_callback = NULL;
@@ -17,21 +20,26 @@ static quote_display_callback_t display_callback = NULL;
 
 #define MAX_URL_LEN 256
 
-#define REFRESH_INTERVAL_US 600000000ULL    // 10分钟，单位微秒
+#define REFRESH_INTERVAL_US 3600000000ULL    // 10分钟=600000000ULL，60分钟=3600000000ULL,单位微秒
 
 #define NVS_NAMESPACE "epaper_quote"       // NVS命名空间（用于存储last_quote）
 #define NVS_KEY_LAST_QUOTE "last_quote"    // NVS中存储last_quote的键
 #define LAST_QUOTE_MAX_LEN 256             // 语录最大长度
 
-void get_mac_font_url(char *url_out, size_t max_len)
+esp_err_t generate_device_request_url(char *url_out, size_t max_len, request_reason_t reason)
 {
+    // 参数合法性检查
+    if (url_out == NULL || max_len < 64) {  // 最小URL长度估算
+        return ESP_ERR_INVALID_ARG;
+    }
+
     uint8_t mac[6];
     esp_err_t err = esp_read_mac(mac, ESP_MAC_WIFI_STA);  // 读取STA模式下的MAC地址
 
     if (err != ESP_OK) {
         memset(url_out, 0, max_len);    // 清空输出
         printf("获取MAC地址失败: %s\n", esp_err_to_name(err));
-        return;
+        return ESP_ERR_INVALID_ARG;
     }
 
     // 格式化MAC地址为不带冒号的大写字符串
@@ -40,14 +48,39 @@ void get_mac_font_url(char *url_out, size_t max_len)
              "%02X%02X%02X%02X%02X%02X",
              mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
+    // 3. 转换请求原因为字符串（便于服务器解析）
+    const char *reason_str;
+    switch (reason) {
+        case REQUEST_REASON_BUTTON_TRIGGER: // 按键触发请求
+            reason_str = "button_trigger";
+            break;
+        case REQUEST_REASON_TIMER:          // 定时请求
+            reason_str = "timer";
+            break;
+        case REQUEST_REASON_MOTION_DETECT:  // 运动检测触发
+            reason_str = "motion_detect";
+            break;
+        case REQUEST_REASON_ERROR:          // 错误状态上报
+            reason_str = "error";
+            break;
+        default:                            // 防止未定义行为
+            reason_str = "unknown";
+            break;
+    }
+
     // 拼接URL字符串
-    snprintf(url_out, max_len,
-             "%s?mac=%s",
-             BASE_URL, mac_str);
+    int ret = snprintf(url_out, max_len,
+                      "%s?mac=%s&reason=%s",
+                      BASE_URL, mac_str, reason_str);
+
+    // 检查URL是否被截断
+    if (ret < 0 || (size_t)ret >= max_len) {
+        memset(url_out, 0, max_len);
+        return ESP_ERR_NO_MEM;  // 缓冲区不足
+    }
+
+    return ESP_OK;                      
 }
-
-
-
 
 
 // 注册显示回调函数
@@ -55,7 +88,7 @@ void register_quote_display_callback(quote_display_callback_t callback) {
     display_callback = callback;
 }
 
-
+// HTTP事件处理函数
 static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
     static int total_len = 0;
     char *buffer = (char *)evt->user_data;
@@ -93,7 +126,24 @@ static void fetch_quote_task(void *pvParameters) {
         char quote_buffer[1024*10] = {0};
         // 获取带有 MAC 地址的 URL
         char full_url[MAX_URL_LEN];
-        get_mac_font_url(full_url, MAX_URL_LEN);
+        // 获取唤醒原因
+        esp_sleep_wakeup_cause_t wake_cause = esp_sleep_get_wakeup_cause();
+
+        // 映射为请求原因
+        request_reason_t req_reason;
+        switch (wake_cause) {
+            case ESP_SLEEP_WAKEUP_EXT0:
+            case ESP_SLEEP_WAKEUP_EXT1:
+                req_reason = REQUEST_REASON_BUTTON_TRIGGER;  // 按键触发
+                break;
+            case ESP_SLEEP_WAKEUP_TIMER:
+                req_reason = REQUEST_REASON_TIMER;           // 定时触发
+                break;
+            default:
+                req_reason = REQUEST_REASON_UNKNOWN;         // 未知原因: 上电复位...
+                break;
+        }        
+        generate_device_request_url(full_url, MAX_URL_LEN, req_reason);
         printf("请求 URL: %s\n", full_url);
 
         esp_http_client_config_t config = {
@@ -217,9 +267,15 @@ static void fetch_quote_task(void *pvParameters) {
         //vTaskDelay(pdMS_TO_TICKS(10 * 60 * 1000));  // 10分钟后再请求
 
         // 进入深度睡眠
-        vTaskDelay(pdMS_TO_TICKS(10 * 1000));   // 确保墨水屏刷新完毕
+        vTaskDelay(pdMS_TO_TICKS(3 * 1000));   // 确保墨水屏刷新完毕
         ESP_LOGI(TAG, "开始深度睡眠");
-        esp_sleep_enable_timer_wakeup(REFRESH_INTERVAL_US);
+
+        rtc_gpio_deinit(WAKE_PIN);              // 切换为RTC模式
+        gpio_reset_pin(WAKE_PIN);               // 复位GPIO配置
+        rtc_gpio_init(WAKE_PIN);                // 初始化RTC引脚
+        rtc_gpio_set_direction(WAKE_PIN, RTC_GPIO_MODE_INPUT_ONLY); // 输入模式
+        esp_sleep_enable_ext0_wakeup(WAKE_PIN , 0);                 // 34号引脚低电平唤醒
+        esp_sleep_enable_timer_wakeup(REFRESH_INTERVAL_US);         // 定时唤醒
         esp_deep_sleep_start();
 
     }

@@ -34,7 +34,8 @@
         "random": "c",
         "quote_fetcher.h": "c",
         "ssd1680_epaper.h": "c",
-        "qy_ssd1680_epaper.h": "c"
+        "qy_ssd1680_epaper.h": "c",
+        "rtc_io.h": "c"
     },
     "C_Cpp.errorSquiggles": "enabled",
     "editor.detectIndentation": false
